@@ -31,7 +31,11 @@ fn main() -> anyhow::Result<()> {
                     if let Some(funcs) = funcs {
                         let main_func = funcs.get("main").context("`main` function not found")?;
 
-                        match eval::expr(&main_func.body, &funcs, &mut Vec::new()) {
+                        let mut machine = eval::Machine {
+                            funcs: &funcs,
+                            stack: Vec::new(),
+                        };
+                        match machine.eval_expr(&main_func.body) {
                             Ok(_) => {}
                             Err(error) => errors.push(Rich::custom(error.span, error.message)),
                         }
