@@ -1,4 +1,6 @@
 #![feature(box_patterns)]
+#![deny(unused_qualifications)]
+#![deny(clippy::pedantic, clippy::use_self)]
 
 use anyhow::{bail, Context};
 use ariadne::{sources, Color, Label, Report, ReportKind};
@@ -59,7 +61,7 @@ fn main() -> anyhow::Result<()> {
                     )
                     .with_labels(error.contexts().map(|(label, span)| {
                         Label::new((path.clone(), span.into_range()))
-                            .with_message(format!("while parsing this {}", label))
+                            .with_message(format!("while parsing this {label}"))
                             .with_color(Color::Yellow)
                     }))
                     .finish()

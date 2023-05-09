@@ -33,10 +33,10 @@ impl<'input> std::fmt::Display for Token<'input> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Token::Unit => write!(f, "()"),
-            Token::Bool(x) => write!(f, "{}", x),
-            Token::Number(n) => write!(f, "{}", n),
-            Token::Str(s) | Token::Op(s) | Token::Ident(s) => write!(f, "{}", s),
-            Token::Char(c) => write!(f, "{}", c),
+            Token::Bool(x) => write!(f, "{x}"),
+            Token::Number(n) => write!(f, "{n}"),
+            Token::Str(s) | Token::Op(s) | Token::Ident(s) => write!(f, "{s}"),
+            Token::Char(c) => write!(f, "{c}"),
             Token::Fn => write!(f, "fn"),
             Token::Let => write!(f, "let"),
             Token::Print => write!(f, "print"),
@@ -91,13 +91,14 @@ mod tests {
     use super::lexer;
 
     #[track_caller]
+    #[allow(clippy::needless_pass_by_value)]
     fn check(input: &str, expect: expect_test::Expect) {
         let tokens = lexer().parse(input).unwrap();
         let actual: String = tokens
             .into_iter()
             .map(|(token, span)| format!("{token:?} at {span}\n"))
             .collect();
-        expect.assert_eq(&actual)
+        expect.assert_eq(&actual);
     }
 
     #[test]

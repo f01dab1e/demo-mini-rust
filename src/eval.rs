@@ -19,7 +19,7 @@ impl<'input> Value<'input> {
             &Value::Num(x) => Ok(x),
             _ => Err(Error {
                 span,
-                message: format!("'{:?}' is not a number", self),
+                message: format!("'{self:?}' is not a number"),
             }),
         }
     }
@@ -50,11 +50,11 @@ pub fn expr<'input>(
         Expr::Local(name) => stack
             .iter()
             .rev()
-            .find_map(|(l, v)| (l == name).then(|| v.clone()))
+            .find_map(|(local, value)| (local == name).then(|| value.clone()))
             .or_else(|| funcs.contains_key(name).then_some(Value::Func(name)))
             .ok_or_else(|| Error {
                 span: node.1,
-                message: format!("No such variable '{}' in scope", name),
+                message: format!("No such variable '{name}' in scope"),
             })?,
         Expr::Let(local, val, body) => {
             let val = expr(val, funcs, stack)?;
@@ -76,8 +76,8 @@ pub fn expr<'input>(
                 BinaryOp::Sub => std::ops::Sub::sub,
                 BinaryOp::Mul => std::ops::Mul::mul,
                 BinaryOp::Div => std::ops::Div::div,
-                BinaryOp::Eq => |a, b| (a == b) as u8 as f64,
-                BinaryOp::NotEq => |a, b| (a != b) as u8 as f64,
+                BinaryOp::Eq => return Ok(Value::Bool((lhs - rhs).abs() < f64::EPSILON)),
+                BinaryOp::NotEq => return Ok(Value::Bool((lhs - rhs).abs() > f64::EPSILON)),
             };
 
             Value::Num(binary(lhs, rhs))
@@ -87,22 +87,21 @@ pub fn expr<'input>(
             match func {
                 Value::Func(name) => {
                     let func = &funcs[&name];
-                    let mut stack = if func.args.len() != args.len() {
-                        return Err(Error {
-                            span: node.1,
-                            message: format!(
-                                "'{}' called with wrong number of arguments (expected {}, found {})",
-                                name,
-                                func.args.len(),
-                                args.len()
-                            ),
-                        });
-                    } else {
+                    let mut stack = if func.args.len() == args.len() {
                         func.args
                             .iter()
                             .zip(args.iter())
                             .map(|(name, arg)| Ok((*name, expr(arg, funcs, stack)?)))
                             .collect::<Result<_, _>>()?
+                    } else {
+                        return Err(Error {
+                            span: node.1,
+                            message: format!(
+                                "'{name}' called with wrong number of arguments (expected {}, found {})",
+                                func.args.len(),
+                                args.len()
+                            ),
+                        });
                     };
                     expr(&func.body, funcs, &mut stack)?
                 }
@@ -129,7 +128,7 @@ pub fn expr<'input>(
         }
         Expr::Print(a) => {
             let val = expr(a, funcs, stack)?;
-            println!("{:?}", val);
+            println!("{val:?}");
             val
         }
     })

@@ -8,6 +8,7 @@ use crate::lexer::{Span, Token};
 type ParserInput<'tokens, 'input> =
     chumsky::input::SpannedInput<Token<'input>, Span, &'tokens [(Token<'input>, Span)]>;
 
+#[allow(clippy::too_many_lines)]
 fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
     'tokens,
     ParserInput<'tokens, 'input>,
@@ -190,7 +191,7 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                 just(Token::Char(';')).ignore_then(expr.or_not()).repeated(),
                 |a, b| {
                     let a_start = a.1.start;
-                    let b_end = b.as_ref().map(|b| b.1.end).unwrap_or(a.1.end);
+                    let b_end = b.as_ref().map_or(a.1.end, |b| b.1.end);
                     (
                         Expr::Then(
                             Box::new(a),
@@ -216,7 +217,7 @@ pub fn funcs<'tokens, 'input: 'tokens>() -> impl Parser<
         .allow_trailing()
         .collect()
         .delimited_by(just(Token::Char('(')), just(Token::Char(')')))
-        .labelled("function args");
+        .labelled("function parameters");
 
     let func = just(Token::Fn)
         .ignore_then(
@@ -250,7 +251,7 @@ pub fn funcs<'tokens, 'input: 'tokens>() -> impl Parser<
                 if funcs.insert(name.clone(), func).is_some() {
                     emitter.emit(Rich::custom(
                         name_span,
-                        format!("Function '{}' already exists", name),
+                        format!("Function '{name}' already exists"),
                     ));
                 }
             }
