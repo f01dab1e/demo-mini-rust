@@ -31,7 +31,7 @@ fn main() -> anyhow::Result<()> {
 
                         match eval::expr(&main_func.body, &funcs, &mut Vec::new()) {
                             Ok(_) => {}
-                            Err(error) => errors.push(Rich::custom(error.span, error.msg)),
+                            Err(error) => errors.push(Rich::custom(error.span, error.message)),
                         }
                     }
 

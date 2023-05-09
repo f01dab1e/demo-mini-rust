@@ -14,12 +14,12 @@ pub enum Value<'input> {
 }
 
 impl<'input> Value<'input> {
-    fn num(self, span: Span) -> Result<f64, Error> {
+    fn to_number(&self, span: Span) -> Result<f64, Error> {
         match self {
-            Value::Num(x) => Ok(x),
+            &Value::Num(x) => Ok(x),
             _ => Err(Error {
                 span,
-                msg: format!("'{:?}' is not a number", self),
+                message: format!("'{:?}' is not a number", self),
             }),
         }
     }
@@ -27,7 +27,7 @@ impl<'input> Value<'input> {
 
 pub struct Error {
     pub span: Span,
-    pub msg: String,
+    pub message: String,
 }
 
 pub fn expr<'input>(
@@ -54,7 +54,7 @@ pub fn expr<'input>(
             .or_else(|| funcs.contains_key(name).then_some(Value::Func(name)))
             .ok_or_else(|| Error {
                 span: node.1,
-                msg: format!("No such variable '{}' in scope", name),
+                message: format!("No such variable '{}' in scope", name),
             })?,
         Expr::Let(local, val, body) => {
             let val = expr(val, funcs, stack)?;
@@ -67,65 +67,62 @@ pub fn expr<'input>(
             expr(a, funcs, stack)?;
             expr(b, funcs, stack)?
         }
-        Expr::Binary(a, BinaryOp::Add, b) => {
-            Value::Num(expr(a, funcs, stack)?.num(a.1)? + expr(b, funcs, stack)?.num(b.1)?)
+        Expr::Binary(lhs, op, rhs) => {
+            let lhs = expr(lhs, funcs, stack)?.to_number(lhs.1)?;
+            let rhs = expr(rhs, funcs, stack)?.to_number(rhs.1)?;
+
+            let binary = match op {
+                BinaryOp::Add => std::ops::Add::add,
+                BinaryOp::Sub => std::ops::Sub::sub,
+                BinaryOp::Mul => std::ops::Mul::mul,
+                BinaryOp::Div => std::ops::Div::div,
+                BinaryOp::Eq => |a, b| (a == b) as u8 as f64,
+                BinaryOp::NotEq => |a, b| (a != b) as u8 as f64,
+            };
+
+            Value::Num(binary(lhs, rhs))
         }
-        Expr::Binary(a, BinaryOp::Sub, b) => {
-            Value::Num(expr(a, funcs, stack)?.num(a.1)? - expr(b, funcs, stack)?.num(b.1)?)
-        }
-        Expr::Binary(a, BinaryOp::Mul, b) => {
-            Value::Num(expr(a, funcs, stack)?.num(a.1)? * expr(b, funcs, stack)?.num(b.1)?)
-        }
-        Expr::Binary(a, BinaryOp::Div, b) => {
-            Value::Num(expr(a, funcs, stack)?.num(a.1)? / expr(b, funcs, stack)?.num(b.1)?)
-        }
-        Expr::Binary(a, BinaryOp::Eq, b) => {
-            Value::Bool(expr(a, funcs, stack)? == expr(b, funcs, stack)?)
-        }
-        Expr::Binary(a, BinaryOp::NotEq, b) => {
-            Value::Bool(expr(a, funcs, stack)? != expr(b, funcs, stack)?)
-        }
-        Expr::Call(func, args) => {
-            let f = expr(func, funcs, stack)?;
-            match f {
+        Expr::Call(func_expr, args) => {
+            let func = expr(func_expr, funcs, stack)?;
+            match func {
                 Value::Func(name) => {
-                    let f = &funcs[&name];
-                    let mut stack = if f.args.len() != args.len() {
+                    let func = &funcs[&name];
+                    let mut stack = if func.args.len() != args.len() {
                         return Err(Error {
                             span: node.1,
-                            msg: format!(
+                            message: format!(
                                 "'{}' called with wrong number of arguments (expected {}, found {})",
                                 name,
-                                f.args.len(),
+                                func.args.len(),
                                 args.len()
                             ),
                         });
                     } else {
-                        f.args
+                        func.args
                             .iter()
                             .zip(args.iter())
                             .map(|(name, arg)| Ok((*name, expr(arg, funcs, stack)?)))
                             .collect::<Result<_, _>>()?
                     };
-                    expr(&f.body, funcs, &mut stack)?
+                    expr(&func.body, funcs, &mut stack)?
                 }
-                f => {
+                not_callable => {
                     return Err(Error {
-                        span: func.1,
-                        msg: format!("'{:?}' is not callable", f),
+                        span: func_expr.1,
+                        message: format!("'{not_callable:?}' is not callable"),
                     });
                 }
             }
         }
-        Expr::If(cond, a, b) => {
-            let test = expr(cond, funcs, stack)?;
+        Expr::If(test_expr, if_true, if_false) => {
+            let test = expr(test_expr, funcs, stack)?;
             match test {
-                Value::Bool(true) => expr(a, funcs, stack)?,
-                Value::Bool(false) => expr(b, funcs, stack)?,
+                Value::Bool(true) => expr(if_true, funcs, stack)?,
+                Value::Bool(false) => expr(if_false, funcs, stack)?,
                 value => {
                     return Err(Error {
-                        span: cond.1,
-                        msg: format!("Conditions must be booleans, found '{value:?}'"),
+                        span: test_expr.1,
+                        message: format!("Conditions must be booleans, found '{value:?}'"),
                     });
                 }
             }
