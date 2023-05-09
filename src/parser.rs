@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use chumsky::prelude::*;
 
-use crate::ast::{BinaryOp, Expr, Func, Literal, Spanned};
+use crate::ast::{BinaryOp, Expr, Func, Spanned};
 use crate::lexer::{Span, Token};
 
 type ParserInput<'tokens, 'input> =
@@ -17,10 +17,10 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
     recursive(|expr| {
         let inline_expr = recursive(|inline_expr| {
             let val = select! {
-                Token::Null => Expr::Literal(Literal::Unit),
-                Token::Bool(n) => Expr::Literal(Literal::Bool(n)),
-                Token::Number(n) => Expr::Literal(Literal::Number(n)),
-                Token::Str(s) => Expr::Literal(Literal::Str(s)),
+                Token::Unit => Expr::Unit,
+                Token::Bool(n) => Expr::Bool(n),
+                Token::Number(n) => Expr::Number(n),
+                Token::Str(s) => Expr::Str(s),
             }
             .labelled("literal");
 
@@ -148,7 +148,7 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                         Expr::If(
                             Box::new(cond),
                             Box::new(a),
-                            Box::new(b.unwrap_or_else(|| (Expr::Literal(Literal::Unit), span))),
+                            Box::new(b.unwrap_or_else(|| (Expr::Unit, span))),
                         ),
                         span,
                     )
@@ -194,9 +194,7 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                     (
                         Expr::Then(
                             Box::new(a),
-                            Box::new(b.unwrap_or_else(|| {
-                                (Expr::Literal(Literal::Unit), (b_end..b_end).into())
-                            })),
+                            Box::new(b.unwrap_or_else(|| (Expr::Unit, (b_end..b_end).into()))),
                         ),
                         (a_start..b_end).into(),
                     )

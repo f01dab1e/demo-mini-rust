@@ -1,9 +1,12 @@
+#![feature(box_patterns)]
+
 use anyhow::{bail, Context};
 use ariadne::{sources, Color, Label, Report, ReportKind};
-use chumsky::prelude::Input;
+use chumsky::prelude::{Input, Rich};
 use chumsky::Parser;
 
 mod ast;
+mod eval;
 mod lexer;
 mod parser;
 
@@ -14,7 +17,7 @@ fn main() -> anyhow::Result<()> {
         Some(path) if args.len() == 0 => {
             let input =
                 std::fs::read_to_string(&path).with_context(|| format!("reading `{path}`"))?;
-            let (tokens, errors) = lexer::lexer().parse(&input).into_output_errors();
+            let (tokens, mut errors) = lexer::lexer().parse(&input).into_output_errors();
 
             let parse_errors = match &tokens {
                 Some(tokens) => {
@@ -23,7 +26,14 @@ fn main() -> anyhow::Result<()> {
                         .parse(tokens.as_slice().spanned(eoi.into()))
                         .into_output_errors();
 
-                    dbg!(&funcs);
+                    if let Some(funcs) = funcs {
+                        let main_func = funcs.get("main").context("`main` function not found")?;
+
+                        match eval::expr(&main_func.body, &funcs, &mut Vec::new()) {
+                            Ok(_) => {}
+                            Err(error) => errors.push(Rich::custom(error.span, error.msg)),
+                        }
+                    }
 
                     parse_errors
                 }

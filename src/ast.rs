@@ -6,7 +6,10 @@ pub type ExprPtr<'input> = Box<Spanned<Expr<'input>>>;
 #[derive(Debug)]
 pub enum Expr<'input> {
     Error,
-    Literal(Literal<'input>),
+    Unit,
+    Bool(bool),
+    Number(f64),
+    Str(&'input str),
     List(Vec<Spanned<Self>>),
     Local(&'input str),
     Let(&'input str, ExprPtr<'input>, ExprPtr<'input>),
@@ -15,25 +18,6 @@ pub enum Expr<'input> {
     Call(ExprPtr<'input>, Vec<Spanned<Expr<'input>>>),
     If(ExprPtr<'input>, ExprPtr<'input>, ExprPtr<'input>),
     Print(ExprPtr<'input>),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Literal<'input> {
-    Unit,
-    Bool(bool),
-    Number(f64),
-    Str(&'input str),
-}
-
-impl<'input> std::fmt::Display for Literal<'input> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Self::Unit => write!(f, "null"),
-            Self::Bool(x) => write!(f, "{}", x),
-            Self::Number(x) => write!(f, "{}", x),
-            Self::Str(x) => write!(f, "{}", x),
-        }
-    }
 }
 
 #[derive(Clone, Debug)]

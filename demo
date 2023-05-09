@@ -1,3 +1,5 @@
 fn main() {
-    print("HELLO")
+    let answer = 42;
+    print("HELLO");
+    print(answer);
 }
