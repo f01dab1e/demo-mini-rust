@@ -1,0 +1,13 @@
+[package]
+name = "minirust"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+chumsky = { git = "https://github.com/zesterer/chumsky.git", features = ["label"] }
+phf = { version = "0.11", features = ["macros"] }
+ariadne = "0.2"
+anyhow = "1.0"
+
+[dev-dependencies]
+expect-test = "1.4"
