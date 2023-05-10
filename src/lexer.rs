@@ -96,7 +96,7 @@ mod tests {
         let tokens = lexer().parse(input).unwrap();
         let actual: String = tokens
             .into_iter()
-            .map(|(token, span)| format!("{token:?} at {span}\n"))
+            .map(|(token, span)| format!("{token} at {span}\n"))
             .collect();
         expect.assert_eq(&actual);
     }
@@ -106,18 +106,18 @@ mod tests {
         check(
             "fn main() { println!(\"zebra\"); }",
             expect![[r#"
-                Fn at 0..2
-                Ident("main") at 3..7
-                Char('(') at 7..8
-                Char(')') at 8..9
-                Char('{') at 10..11
-                Ident("println") at 12..19
-                Op("!") at 19..20
-                Char('(') at 20..21
-                Str("\"zebra\"") at 21..28
-                Char(')') at 28..29
-                Char(';') at 29..30
-                Char('}') at 31..32
+                fn at 0..2
+                main at 3..7
+                ( at 7..8
+                ) at 8..9
+                { at 10..11
+                println at 12..19
+                ! at 19..20
+                ( at 20..21
+                "zebra" at 21..28
+                ) at 28..29
+                ; at 29..30
+                } at 31..32
             "#]],
         );
     }
