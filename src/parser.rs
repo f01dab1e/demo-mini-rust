@@ -18,7 +18,6 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
     recursive(|expr| {
         let inline_expr = recursive(|inline_expr| {
             let val = select! {
-                Token::Unit => Expr::Unit,
                 Token::Bool(n) => Expr::Bool(n),
                 Token::Number(n) => Expr::Number(n),
                 Token::Str(s) => Expr::Str(s),

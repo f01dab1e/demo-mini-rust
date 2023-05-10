@@ -10,12 +10,10 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf::phf_map! {
     "else" => Token::Else,
     "true" => Token::Bool(true),
     "false" => Token::Bool(false),
-    "()" => Token::Unit,
 };
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token<'input> {
-    Unit,
     Bool(bool),
     Number(f64),
     Str(&'input str),
@@ -32,7 +30,6 @@ pub enum Token<'input> {
 impl<'input> std::fmt::Display for Token<'input> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Token::Unit => write!(f, "()"),
             Token::Bool(x) => write!(f, "{x}"),
             Token::Number(n) => write!(f, "{n}"),
             Token::Str(s) | Token::Op(s) | Token::Ident(s) => write!(f, "{s}"),
