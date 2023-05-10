@@ -6,6 +6,8 @@ use ariadne::{sources, Color, Label, Report, ReportKind};
 use chumsky::prelude::{Input, Rich};
 use chumsky::Parser;
 
+#[macro_use]
+mod macros;
 mod ast;
 mod eval;
 mod lexer;

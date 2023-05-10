@@ -3,6 +3,9 @@ use crate::lexer::Span;
 pub type Spanned<T> = (T, Span);
 pub type ExprPtr<'input> = Box<Spanned<Expr<'input>>>;
 
+#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+static_assert_size!(ExprPtr, 8);
+
 #[derive(Debug)]
 pub enum Expr<'input> {
     Error,

@@ -3,6 +3,9 @@ use std::collections::HashMap;
 use crate::ast::{BinaryOp, Expr, Func, Spanned};
 use crate::lexer::Span;
 
+#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+static_assert_size!(Value, 32);
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value<'input> {
     Unit,
@@ -149,6 +152,7 @@ mod tests {
     use super::{Machine, Value};
 
     #[track_caller]
+    #[allow(clippy::needless_pass_by_value)]
     fn eval_expr(input: &str, expect: Value) {
         let input = format!("fn main() {{ {input} }}");
         let tokens = crate::lexer::lexer().parse(&input).unwrap();

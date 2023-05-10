@@ -12,6 +12,9 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf::phf_map! {
     "false" => Token::Bool(false),
 };
 
+#[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
+static_assert_size!(Token, 24);
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token<'input> {
     Bool(bool),
