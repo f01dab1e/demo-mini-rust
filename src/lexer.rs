@@ -117,5 +117,12 @@ mod tests {
                 } at 31..32
             "#]],
         );
+
+        check(
+            "// hello\nhello",
+            expect![[r#"
+                hello at 9..14
+            "#]],
+        );
     }
 }
