@@ -7,8 +7,8 @@ use crate::lexer::Span;
 pub enum Value<'input> {
     Unit,
     Bool(bool),
-    Num(f64),
-    Str(&'input str),
+    Number(f64),
+    String(&'input str),
     List(Vec<Self>),
     Func(&'input str),
 }
@@ -16,7 +16,7 @@ pub enum Value<'input> {
 impl<'input> Value<'input> {
     fn to_number(&self, span: Span) -> Result<f64, Error> {
         match self {
-            &Value::Num(x) => Ok(x),
+            &Value::Number(x) => Ok(x),
             _ => Err(Error {
                 span,
                 message: format!("'{self:?}' is not a number"),
@@ -25,6 +25,7 @@ impl<'input> Value<'input> {
     }
 }
 
+#[derive(Debug)]
 pub struct Error {
     pub span: Span,
     pub message: String,
@@ -40,9 +41,9 @@ impl<'me> Machine<'me> {
         Ok(match &node.0 {
             Expr::Error => unreachable!(),
             Expr::Unit => Value::Unit,
-            &Expr::Str(s) => Value::Str(s),
+            &Expr::Str(s) => Value::String(s),
             &Expr::Bool(n) => Value::Bool(n),
-            &Expr::Number(n) => Value::Num(n),
+            &Expr::Number(n) => Value::Number(n),
             Expr::List(items) => Value::List(
                 items
                     .iter()
@@ -83,7 +84,7 @@ impl<'me> Machine<'me> {
                     BinaryOp::NotEq => return Ok(Value::Bool((lhs - rhs).abs() > f64::EPSILON)),
                 };
 
-                Value::Num(binary(lhs, rhs))
+                Value::Number(binary(lhs, rhs))
             }
             Expr::Call(func_expr, args) => {
                 let func = self.eval_expr(func_expr)?;
@@ -137,5 +138,41 @@ impl<'me> Machine<'me> {
                 val
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chumsky::prelude::Input;
+    use chumsky::Parser;
+
+    use super::{Machine, Value};
+
+    #[track_caller]
+    fn eval_expr(input: &str, expect: Value) {
+        let input = format!("fn main() {{ {input} }}");
+        let tokens = crate::lexer::lexer().parse(&input).unwrap();
+        let eoi = input.len()..input.len();
+        let funcs = crate::parser::funcs()
+            .parse(tokens.as_slice().spanned(eoi.into()))
+            .unwrap();
+
+        let mut machine = Machine {
+            funcs: &funcs,
+            stack: Vec::new(),
+        };
+        let func = &funcs["main"];
+        assert_eq!(machine.eval_expr(&func.body).unwrap(), expect);
+    }
+
+    #[test]
+    fn smoke_test() {
+        eval_expr("true", Value::Bool(true));
+        eval_expr("false", Value::Bool(false));
+
+        eval_expr("42 == 42", Value::Bool(true));
+        eval_expr("42 != 42", Value::Bool(false));
+
+        eval_expr("if true { 42 } else { 40 }", Value::Number(42.));
     }
 }

@@ -83,13 +83,13 @@ pub fn lexer<'input>()
 #[cfg(test)]
 mod tests {
     use chumsky::Parser;
-    use expect_test::expect;
+    use expect_test::{expect, Expect};
 
     use super::lexer;
 
     #[track_caller]
     #[allow(clippy::needless_pass_by_value)]
-    fn check(input: &str, expect: expect_test::Expect) {
+    fn check(input: &str, expect: Expect) {
         let tokens = lexer().parse(input).unwrap();
         let actual: String = tokens
             .into_iter()
