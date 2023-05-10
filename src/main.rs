@@ -1,4 +1,3 @@
-#![feature(box_patterns)]
 #![deny(unused_qualifications)]
 #![deny(clippy::pedantic, clippy::use_self)]
 
