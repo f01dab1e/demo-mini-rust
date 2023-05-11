@@ -33,7 +33,7 @@ impl<'input> Value<'input> {
                     .map(Value::stringify)
                     .collect::<Vec<_>>()
                     .join(", ");
-                format!("{items}")
+                format!("[{items}]")
             }
             Value::Function(name) => format!("<function {name}>"),
         }
@@ -46,7 +46,7 @@ impl<'input> Value<'input> {
             &Value::Number(x) => Ok(x),
             _ => Err(Error {
                 span,
-                message: format!("'{self:?}' is not a number"),
+                message: format!("'{}' is not a number", self.stringify()),
             }),
         }
     }
@@ -74,12 +74,7 @@ impl<'me> Machine<'me> {
     #[allow(clippy::too_many_lines)]
     pub fn eval_expr(&mut self, node: &'me Expr) -> Result<Value<'me>, Error> {
         let value = match &node.kind {
-            ExprKind::Error => {
-                return Err(Error {
-                    span: node.span,
-                    message: "parsing error encountered 😢".into(),
-                });
-            }
+            ExprKind::Error => panic!("parsing error encountered 😢"),
             ExprKind::Unit => Value::Unit,
             &ExprKind::Str(s) => Value::String(s),
             &ExprKind::Bool(n) => Value::Bool(n),
@@ -145,7 +140,7 @@ impl<'me> Machine<'me> {
                             return Err(Error {
                                 span: node.span,
                                 message: format!(
-                                    "'{name}' called with wrong number of arguments (expected {}, found {})",
+                                    "expected to find {} arguments, but found {}",
                                     func.args.len(),
                                     args.len()
                                 ),
@@ -155,10 +150,13 @@ impl<'me> Machine<'me> {
                         self.stack = stack;
                         self.eval_expr(&func.body)?
                     }
-                    not_callable => {
+                    value => {
                         return Err(Error {
                             span: func_expr.span,
-                            message: format!("'{not_callable:?}' is not callable"),
+                            message: format!(
+                                "'expected something callable, found {}",
+                                value.stringify()
+                            ),
                         });
                     }
                 }
@@ -171,7 +169,10 @@ impl<'me> Machine<'me> {
                     value => {
                         return Err(Error {
                             span: test_expr.span,
-                            message: format!("Conditions must be booleans, found '{value:?}'"),
+                            message: format!(
+                                "Conditions must be booleans, found {}",
+                                value.stringify()
+                            ),
                         });
                     }
                 }
