@@ -6,10 +6,10 @@ use crate::ast::{BinaryOp, Expr, ExprKind, Func};
 use crate::lexer::{Span, Token};
 
 const BLOCK_END_TOKENS: [Token; 4] = [
-    Token::Char(';'),
-    Token::Char('}'),
-    Token::Char(')'),
-    Token::Char(']'),
+    Token::Semi,
+    Token::CloseBrace,
+    Token::CloseParen,
+    Token::CloseBracket,
 ];
 
 type ParserInput<'tokens, 'input> =
@@ -36,7 +36,7 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
 
             let items = expr
                 .clone()
-                .separated_by(just(Token::Char(',')))
+                .separated_by(just(Token::Comma))
                 .allow_trailing()
                 .collect::<Vec<_>>();
 
@@ -44,7 +44,7 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                 .ignore_then(ident)
                 .then_ignore(just(Token::Op("=")))
                 .then(inline_expr)
-                .then_ignore(just(Token::Char(';')))
+                .then_ignore(just(Token::Semi))
                 .then(expr.clone())
                 .map(|((name, val), body)| ExprKind::Let(name, Box::new(val), Box::new(body)))
                 .boxed();
@@ -52,7 +52,7 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
             let list = items
                 .clone()
                 .map(ExprKind::List)
-                .delimited_by(just(Token::Char('[')), just(Token::Char(']')))
+                .delimited_by(just(Token::OpenBracket), just(Token::CloseBracket))
                 .boxed();
 
             let atom = val
@@ -62,28 +62,28 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                 .or(just(Token::Print)
                     .ignore_then(
                         expr.clone()
-                            .delimited_by(just(Token::Char('(')), just(Token::Char(')'))),
+                            .delimited_by(just(Token::OpenParen), just(Token::CloseParen)),
                     )
                     .map(|expr| ExprKind::Print(Box::new(expr))))
                 .map_with_span(mk_expr)
                 .or(expr
                     .clone()
-                    .delimited_by(just(Token::Char('(')), just(Token::Char(')'))))
+                    .delimited_by(just(Token::OpenParen), just(Token::CloseParen)))
                 .recover_with(via_parser(nested_delimiters(
-                    Token::Char('('),
-                    Token::Char(')'),
+                    Token::OpenParen,
+                    Token::CloseParen,
                     [
-                        (Token::Char('['), Token::Char(']')),
-                        (Token::Char('{'), Token::Char('}')),
+                        (Token::OpenBracket, Token::CloseBracket),
+                        (Token::OpenBrace, Token::CloseBrace),
                     ],
                     fallback,
                 )))
                 .recover_with(via_parser(nested_delimiters(
-                    Token::Char('['),
-                    Token::Char(']'),
+                    Token::OpenBracket,
+                    Token::CloseBracket,
                     [
-                        (Token::Char('('), Token::Char(')')),
-                        (Token::Char('{'), Token::Char('}')),
+                        (Token::OpenParen, Token::CloseParen),
+                        (Token::OpenBrace, Token::CloseBrace),
                     ],
                     fallback,
                 )))
@@ -92,12 +92,12 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
             let call = atom
                 .foldl(
                     items
-                        .delimited_by(just(Token::Char('(')), just(Token::Char(')')))
+                        .delimited_by(just(Token::OpenParen), just(Token::CloseParen))
                         .map_with_span(|args, span: Span| (args, span))
                         .repeated(),
-                    |callee, args| {
-                        let span = callee.span.start..args.1.end;
-                        mk_expr(ExprKind::Call(Box::new(callee), args.0), span.into())
+                    |callee, (args, args_span)| {
+                        let span = callee.span.start..args_span.end;
+                        mk_expr(ExprKind::Call(Box::new(callee), args), span.into())
                     },
                 )
                 .boxed();
@@ -156,13 +156,13 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
 
         let block = expr
             .clone()
-            .delimited_by(just(Token::Char('{')), just(Token::Char('}')))
+            .delimited_by(just(Token::OpenBrace), just(Token::CloseBrace))
             .recover_with(via_parser(nested_delimiters(
-                Token::Char('{'),
-                Token::Char('}'),
+                Token::OpenBrace,
+                Token::CloseBrace,
                 [
-                    (Token::Char('('), Token::Char(')')),
-                    (Token::Char('['), Token::Char(']')),
+                    (Token::OpenParen, Token::CloseParen),
+                    (Token::OpenBracket, Token::CloseBracket),
                 ],
                 fallback,
             )))
@@ -200,11 +200,11 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
             .boxed();
 
         let block_recovery = nested_delimiters(
-            Token::Char('{'),
-            Token::Char('}'),
+            Token::OpenBrace,
+            Token::CloseBrace,
             [
-                (Token::Char('('), Token::Char(')')),
-                (Token::Char('['), Token::Char(']')),
+                (Token::OpenParen, Token::CloseParen),
+                (Token::OpenBracket, Token::CloseBracket),
             ],
             |span| (ExprKind::Error, span),
         )
@@ -218,7 +218,7 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                 one_of(BLOCK_END_TOKENS).ignored(),
             ))
             .foldl(
-                just(Token::Char(';')).ignore_then(expr.or_not()).repeated(),
+                just(Token::Semi).ignore_then(expr.or_not()).repeated(),
                 |head, tail| {
                     let head_start = head.span.start;
                     let tail_end = tail.as_ref().map_or(head.span.end, |b| b.span.end);
@@ -245,10 +245,10 @@ pub fn funcs<'tokens, 'input: 'tokens>() -> impl Parser<
     let ident = select! { Token::Ident(ident) => ident.clone() };
 
     let args = ident
-        .separated_by(just(Token::Char(',')))
+        .separated_by(just(Token::Comma))
         .allow_trailing()
         .collect()
-        .delimited_by(just(Token::Char('(')), just(Token::Char(')')))
+        .delimited_by(just(Token::OpenParen), just(Token::CloseParen))
         .labelled("function parameters");
 
     let func = just(Token::Fn)
@@ -261,13 +261,13 @@ pub fn funcs<'tokens, 'input: 'tokens>() -> impl Parser<
         .map_with_span(|start, span| (start, span))
         .then(
             expr()
-                .delimited_by(just(Token::Char('{')), just(Token::Char('}')))
+                .delimited_by(just(Token::OpenBrace), just(Token::CloseBrace))
                 .recover_with(via_parser(nested_delimiters(
-                    Token::Char('{'),
-                    Token::Char('}'),
+                    Token::OpenBrace,
+                    Token::CloseBrace,
                     [
-                        (Token::Char('('), Token::Char(')')),
-                        (Token::Char('['), Token::Char(']')),
+                        (Token::OpenParen, Token::CloseParen),
+                        (Token::OpenBracket, Token::CloseBracket),
                     ],
                     fallback,
                 ))),

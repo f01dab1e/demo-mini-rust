@@ -1,3 +1,5 @@
+use std::fmt::Write;
+
 use chumsky::prelude::*;
 
 pub type Span = SimpleSpan<usize>;
@@ -21,7 +23,14 @@ pub enum Token<'input> {
     Number(f64),
     Str(&'input str),
     Op(&'input str),
-    Char(char),
+    OpenParen,
+    OpenBrace,
+    OpenBracket,
+    CloseParen,
+    CloseBrace,
+    CloseBracket,
+    Semi,
+    Comma,
     Ident(&'input str),
     Fn,
     Let,
@@ -36,12 +45,19 @@ impl<'input> std::fmt::Display for Token<'input> {
             Token::Bool(x) => write!(f, "{x}"),
             Token::Number(n) => write!(f, "{n}"),
             Token::Str(s) | Token::Op(s) | Token::Ident(s) => write!(f, "{s}"),
-            Token::Char(c) => write!(f, "{c}"),
             Token::Fn => write!(f, "fn"),
             Token::Let => write!(f, "let"),
             Token::Print => write!(f, "print"),
             Token::If => write!(f, "if"),
             Token::Else => write!(f, "else"),
+            Token::Semi => f.write_char(';'),
+            Token::OpenParen => f.write_char('('),
+            Token::CloseParen => f.write_char(')'),
+            Token::OpenBracket => f.write_char('['),
+            Token::CloseBracket => f.write_char(']'),
+            Token::OpenBrace => f.write_char('{'),
+            Token::CloseBrace => f.write_char('}'),
+            Token::Comma => f.write_char(','),
         }
     }
 }
@@ -63,7 +79,17 @@ pub fn lexer<'input>()
 
     let operator = one_of("+*-/!=").repeated().at_least(1).map_slice(Token::Op);
 
-    let one_symbol = one_of("()[]{};,").map(Token::Char);
+    let one_symbol = one_of("()[]{};,").map(|ch| match ch {
+        '(' => Token::OpenParen,
+        ')' => Token::CloseParen,
+        '[' => Token::OpenBracket,
+        ']' => Token::CloseBracket,
+        '{' => Token::OpenBrace,
+        '}' => Token::CloseBrace,
+        ';' => Token::Semi,
+        ',' => Token::Comma,
+        _ => unreachable!(),
+    });
 
     let identifier = text::ident()
         .map(|ident: &str| KEYWORDS.get(ident).cloned().unwrap_or(Token::Ident(ident)));
