@@ -1,3 +1,4 @@
+#![feature(exact_size_is_empty)]
 #![deny(unused_qualifications)]
 #![deny(clippy::pedantic, clippy::use_self)]
 
@@ -17,7 +18,7 @@ fn main() -> anyhow::Result<()> {
     let mut args = std::env::args().skip(1);
 
     match args.next() {
-        Some(path) if args.len() == 0 => {
+        Some(path) if args.is_empty() => {
             let input =
                 std::fs::read_to_string(&path).with_context(|| format!("reading `{path}`"))?;
             let (tokens, mut errors) = lexer::lexer().parse(&input).into_output_errors();
