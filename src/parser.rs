@@ -5,6 +5,13 @@ use chumsky::prelude::*;
 use crate::ast::{BinaryOp, Expr, ExprKind, Func};
 use crate::lexer::{Span, Token};
 
+const BLOCK_END_TOKENS: [Token; 4] = [
+    Token::Char(';'),
+    Token::Char('}'),
+    Token::Char(')'),
+    Token::Char(']'),
+];
+
 type ParserInput<'tokens, 'input> =
     chumsky::input::SpannedInput<Token<'input>, Span, &'tokens [(Token<'input>, Span)]>;
 
@@ -170,7 +177,7 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                         .ignore_then(block.clone().or(if_))
                         .or_not(),
                 )
-                .map_with_span(|((test, if_true), if_false), span: Span| {
+                .map_with_span(|((test, if_true), if_false), span| {
                     mk_expr(
                         ExprKind::If(
                             Box::new(test),
@@ -208,27 +215,21 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
             .or(inline_expr.clone())
             .recover_with(skip_then_retry_until(
                 block_recovery.ignored().or(any().ignored()),
-                one_of([
-                    Token::Char(';'),
-                    Token::Char('}'),
-                    Token::Char(')'),
-                    Token::Char(']'),
-                ])
-                .ignored(),
+                one_of(BLOCK_END_TOKENS).ignored(),
             ))
             .foldl(
                 just(Token::Char(';')).ignore_then(expr.or_not()).repeated(),
-                |a, b| {
-                    let a_start = a.span.start;
-                    let b_end = b.as_ref().map_or(a.span.end, |b| b.span.end);
+                |head, tail| {
+                    let head_start = head.span.start;
+                    let tail_end = tail.as_ref().map_or(head.span.end, |b| b.span.end);
                     mk_expr(
                         ExprKind::Then(
-                            Box::new(a),
-                            Box::new(
-                                b.unwrap_or_else(|| mk_expr(ExprKind::Unit, (b_end..b_end).into())),
-                            ),
+                            Box::new(head),
+                            Box::new(tail.unwrap_or_else(|| {
+                                mk_expr(ExprKind::Unit, (tail_end..tail_end).into())
+                            })),
                         ),
-                        (a_start..b_end).into(),
+                        (head_start..tail_end).into(),
                     )
                 },
             )
