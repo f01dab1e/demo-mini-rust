@@ -1,6 +1,6 @@
-# demo_minirust
+# demo-mini-rust 
 
-This refers to a complete parser and interpreter designed for a Rust-like expression-oriented programming language that is dynamically typed. 
+This is a dynamically-typed programming language called mini-rust, inspired by Rust and equipped with a parser and interpreter.
 
 ## Try it out!
 
