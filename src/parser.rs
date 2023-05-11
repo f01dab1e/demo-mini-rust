@@ -22,7 +22,8 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                 Token::Number(n) => ExprKind::Number(n),
                 Token::Str(s) => ExprKind::Str(s),
             }
-            .labelled("literal");
+            .labelled("literal")
+            .boxed();
 
             let ident = select! { Token::Ident(ident) => ident.clone() }.labelled("identifier");
 
@@ -38,12 +39,14 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                 .then(inline_expr)
                 .then_ignore(just(Token::Char(';')))
                 .then(expr.clone())
-                .map(|((name, val), body)| ExprKind::Let(name, Box::new(val), Box::new(body)));
+                .map(|((name, val), body)| ExprKind::Let(name, Box::new(val), Box::new(body)))
+                .boxed();
 
             let list = items
                 .clone()
                 .map(ExprKind::List)
-                .delimited_by(just(Token::Char('[')), just(Token::Char(']')));
+                .delimited_by(just(Token::Char('[')), just(Token::Char(']')))
+                .boxed();
 
             let atom = val
                 .or(ident.map(ExprKind::Local))
@@ -79,20 +82,23 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                 )))
                 .boxed();
 
-            let call = atom.foldl(
-                items
-                    .delimited_by(just(Token::Char('(')), just(Token::Char(')')))
-                    .map_with_span(|args, span: Span| (args, span))
-                    .repeated(),
-                |callee, args| {
-                    let span = callee.span.start..args.1.end;
-                    mk_expr(ExprKind::Call(Box::new(callee), args.0), span.into())
-                },
-            );
+            let call = atom
+                .foldl(
+                    items
+                        .delimited_by(just(Token::Char('(')), just(Token::Char(')')))
+                        .map_with_span(|args, span: Span| (args, span))
+                        .repeated(),
+                    |callee, args| {
+                        let span = callee.span.start..args.1.end;
+                        mk_expr(ExprKind::Call(Box::new(callee), args.0), span.into())
+                    },
+                )
+                .boxed();
 
             let op = just(Token::Op("*"))
                 .to(BinaryOp::Mul)
-                .or(just(Token::Op("/")).to(BinaryOp::Div));
+                .or(just(Token::Op("/")).to(BinaryOp::Div))
+                .boxed();
 
             let product = call
                 .clone()
@@ -102,11 +108,13 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                         ExprKind::Binary(Box::new(lhs), op, Box::new(rhs)),
                         span.into(),
                     )
-                });
+                })
+                .boxed();
 
             let op = just(Token::Op("+"))
                 .to(BinaryOp::Add)
-                .or(just(Token::Op("-")).to(BinaryOp::Sub));
+                .or(just(Token::Op("-")).to(BinaryOp::Sub))
+                .boxed();
 
             let sum = product
                 .clone()
@@ -116,11 +124,13 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                         ExprKind::Binary(Box::new(lhs), op, Box::new(rhs)),
                         span.into(),
                     )
-                });
+                })
+                .boxed();
 
             let op = just(Token::Op("=="))
                 .to(BinaryOp::Eq)
-                .or(just(Token::Op("!=")).to(BinaryOp::NotEq));
+                .or(just(Token::Op("!=")).to(BinaryOp::NotEq))
+                .boxed();
 
             let compare = sum
                 .clone()
@@ -130,10 +140,12 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                         ExprKind::Binary(Box::new(lhs), op, Box::new(rhs)),
                         span.into(),
                     )
-                });
+                })
+                .boxed();
 
             compare.labelled("expression").as_context()
-        });
+        })
+        .boxed();
 
         let block = expr
             .clone()
@@ -146,7 +158,8 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                     (Token::Char('['), Token::Char(']')),
                 ],
                 fallback,
-            )));
+            )))
+            .boxed();
 
         let if_expr = recursive(|if_| {
             just(Token::If)
@@ -167,15 +180,17 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                         span,
                     )
                 })
-        });
+        })
+        .boxed();
 
-        let block_expr = block.or(if_expr);
+        let block_expr = block.or(if_expr).boxed();
         let block_chain = block_expr
             .clone()
             .foldl(block_expr.clone().repeated(), |a, b| {
                 let span = a.span.start..b.span.end;
                 mk_expr(ExprKind::Then(Box::new(a), Box::new(b)), span.into())
-            });
+            })
+            .boxed();
 
         let block_recovery = nested_delimiters(
             Token::Char('{'),
@@ -185,7 +200,8 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                 (Token::Char('['), Token::Char(']')),
             ],
             |span| (ExprKind::Error, span),
-        );
+        )
+        .boxed();
 
         block_chain
             .labelled("block")
