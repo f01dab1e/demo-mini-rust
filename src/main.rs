@@ -30,12 +30,16 @@ fn main() -> anyhow::Result<()> {
                         .parse(tokens.as_slice().spanned(eoi.into()))
                         .into_output_errors();
 
-                    if let Some(funcs) = funcs {
-                        let main_func = funcs.get("main").context("`main` function not found")?;
+                    match funcs {
+                        Some(funcs) if errors.is_empty() => {
+                            let main_func =
+                                funcs.get("main").context("`main` function not found")?;
 
-                        if let Err(error) = machine::init(&funcs).eval_expr(&main_func.body) {
-                            errors.push(Rich::custom(error.span, error.message));
+                            if let Err(error) = machine::init(&funcs).eval_expr(&main_func.body) {
+                                errors.push(Rich::custom(error.span, error.message));
+                            }
                         }
+                        _ => (),
                     }
 
                     parse_errors

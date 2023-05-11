@@ -28,7 +28,7 @@ pub enum ExprKind<'input> {
     Print(ExprPtr<'input>),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub enum BinaryOp {
     Add,
     Sub,

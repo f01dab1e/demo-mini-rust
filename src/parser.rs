@@ -42,7 +42,7 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
 
             let let_expr = just(Token::Let)
                 .ignore_then(ident)
-                .then_ignore(just(Token::Op("=")))
+                .then_ignore(just(Token::Equal))
                 .then(inline_expr)
                 .then_ignore(just(Token::Semi))
                 .then(expr.clone())
@@ -102,49 +102,44 @@ fn expr<'tokens, 'input: 'tokens>() -> impl Parser<
                 )
                 .boxed();
 
-            let op = just(Token::Op("*"))
-                .to(BinaryOp::Mul)
-                .or(just(Token::Op("/")).to(BinaryOp::Div))
+            let op = just(Token::Op(BinaryOp::Mul))
+                .or(just(Token::Op(BinaryOp::Div)))
                 .boxed();
 
             let product = call
                 .clone()
-                .foldl(op.then(call).repeated(), |lhs, (op, rhs)| {
+                .foldl(op.then(call).repeated(), |lhs, (operator_token, rhs)| {
                     let span = lhs.span.start..rhs.span.end;
                     mk_expr(
-                        ExprKind::Binary(Box::new(lhs), op, Box::new(rhs)),
+                        ExprKind::Binary(Box::new(lhs), operator_token.as_binop(), Box::new(rhs)),
                         span.into(),
                     )
                 })
                 .boxed();
 
-            let op = just(Token::Op("+"))
-                .to(BinaryOp::Add)
-                .or(just(Token::Op("-")).to(BinaryOp::Sub))
-                .boxed();
+            let op = just(Token::Op(BinaryOp::Add)).or(just(Token::Op(BinaryOp::Sub)));
 
             let sum = product
                 .clone()
-                .foldl(op.then(product).repeated(), |lhs, (op, rhs)| {
+                .foldl(op.then(product).repeated(), |lhs, (operator_token, rhs)| {
                     let span = lhs.span.start..rhs.span.end;
                     mk_expr(
-                        ExprKind::Binary(Box::new(lhs), op, Box::new(rhs)),
+                        ExprKind::Binary(Box::new(lhs), operator_token.as_binop(), Box::new(rhs)),
                         span.into(),
                     )
                 })
                 .boxed();
 
-            let op = just(Token::Op("=="))
-                .to(BinaryOp::Eq)
-                .or(just(Token::Op("!=")).to(BinaryOp::NotEq))
+            let op = just(Token::Op(BinaryOp::Eq))
+                .or(just(Token::Op(BinaryOp::NotEq)))
                 .boxed();
 
             let compare = sum
                 .clone()
-                .foldl(op.then(sum).repeated(), |lhs, (op, rhs)| {
+                .foldl(op.then(sum).repeated(), |lhs, (operator_token, rhs)| {
                     let span = lhs.span.start..rhs.span.end;
                     mk_expr(
-                        ExprKind::Binary(Box::new(lhs), op, Box::new(rhs)),
+                        ExprKind::Binary(Box::new(lhs), operator_token.as_binop(), Box::new(rhs)),
                         span.into(),
                     )
                 })
