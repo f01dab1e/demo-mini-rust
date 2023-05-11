@@ -9,8 +9,8 @@ use chumsky::Parser;
 #[macro_use]
 mod macros;
 mod ast;
-mod eval;
 mod lexer;
+mod machine;
 mod parser;
 
 fn main() -> anyhow::Result<()> {
@@ -32,13 +32,8 @@ fn main() -> anyhow::Result<()> {
                     if let Some(funcs) = funcs {
                         let main_func = funcs.get("main").context("`main` function not found")?;
 
-                        let mut machine = eval::Machine {
-                            funcs: &funcs,
-                            stack: Vec::new(),
-                        };
-                        match machine.eval_expr(&main_func.body) {
-                            Ok(_) => {}
-                            Err(error) => errors.push(Rich::custom(error.span, error.message)),
+                        if let Err(error) = machine::init(&funcs).eval_expr(&main_func.body) {
+                            errors.push(Rich::custom(error.span, error.message));
                         }
                     }
 

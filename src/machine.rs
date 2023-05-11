@@ -3,6 +3,10 @@ use std::collections::HashMap;
 use crate::ast::{BinaryOp, Expr, ExprKind, Func};
 use crate::lexer::Span;
 
+pub fn init<'input>(funcs: &'input HashMap<&'input str, Func>) -> Machine<'input> {
+    Machine::new(funcs)
+}
+
 #[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
 static_assert_size!(Value, 32);
 
@@ -35,11 +39,18 @@ pub struct Error {
 }
 
 pub struct Machine<'me> {
-    pub funcs: &'me HashMap<&'me str, Func<'me>>,
-    pub stack: Vec<(&'me str, Value<'me>)>,
+    funcs: &'me HashMap<&'me str, Func<'me>>,
+    stack: Vec<(&'me str, Value<'me>)>,
 }
 
 impl<'me> Machine<'me> {
+    pub fn new(funcs: &'me HashMap<&'me str, Func<'me>>) -> Self {
+        Self {
+            funcs,
+            stack: Vec::new(),
+        }
+    }
+
     #[allow(clippy::too_many_lines)]
     pub fn eval_expr(&mut self, node: &'me Expr) -> Result<Value<'me>, Error> {
         Ok(match &node.kind {
