@@ -21,6 +21,26 @@ pub enum Value<'input> {
 }
 
 impl<'input> Value<'input> {
+    fn stringify(&self) -> String {
+        match self {
+            Value::Unit => "()".to_owned(),
+            Value::Bool(n) => n.to_string(),
+            Value::Number(n) => n.to_string(),
+            &Value::String(n) => n.to_string(),
+            Value::List(xs) => {
+                let items = xs
+                    .iter()
+                    .map(Value::stringify)
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{items}")
+            }
+            Value::Function(name) => format!("<function {name}>"),
+        }
+    }
+}
+
+impl<'input> Value<'input> {
     fn to_number(&self, span: Span) -> Result<f64, Error> {
         match self {
             &Value::Number(x) => Ok(x),
@@ -53,8 +73,13 @@ impl<'me> Machine<'me> {
 
     #[allow(clippy::too_many_lines)]
     pub fn eval_expr(&mut self, node: &'me Expr) -> Result<Value<'me>, Error> {
-        Ok(match &node.kind {
-            ExprKind::Error => unreachable!(),
+        let value = match &node.kind {
+            ExprKind::Error => {
+                return Err(Error {
+                    span: node.span,
+                    message: "parsing error encountered 😢".into(),
+                });
+            }
             ExprKind::Unit => Value::Unit,
             &ExprKind::Str(s) => Value::String(s),
             &ExprKind::Bool(n) => Value::Bool(n),
@@ -152,11 +177,13 @@ impl<'me> Machine<'me> {
                 }
             }
             ExprKind::Print(expr) => {
-                let val = self.eval_expr(expr)?;
-                println!("{val:?}");
-                val
+                let val = self.eval_expr(expr)?.stringify();
+                println!("{val}");
+                Value::Unit
             }
-        })
+        };
+
+        Ok(value)
     }
 }
 
