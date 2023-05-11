@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ast::{BinaryOp, Expr, Func, Spanned};
+use crate::ast::{BinaryOp, Expr, ExprKind, Func};
 use crate::lexer::Span;
 
 #[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
@@ -13,7 +13,7 @@ pub enum Value<'input> {
     Number(f64),
     String(&'input str),
     List(Vec<Self>),
-    Func(&'input str),
+    Function(&'input str),
 }
 
 impl<'input> Value<'input> {
@@ -40,43 +40,48 @@ pub struct Machine<'me> {
 }
 
 impl<'me> Machine<'me> {
-    pub fn eval_expr(&mut self, node: &Spanned<Expr<'me>>) -> Result<Value<'me>, Error> {
-        Ok(match &node.0 {
-            Expr::Error => unreachable!(),
-            Expr::Unit => Value::Unit,
-            &Expr::Str(s) => Value::String(s),
-            &Expr::Bool(n) => Value::Bool(n),
-            &Expr::Number(n) => Value::Number(n),
-            Expr::List(items) => Value::List(
+    #[allow(clippy::too_many_lines)]
+    pub fn eval_expr(&mut self, node: &'me Expr) -> Result<Value<'me>, Error> {
+        Ok(match &node.kind {
+            ExprKind::Error => unreachable!(),
+            ExprKind::Unit => Value::Unit,
+            &ExprKind::Str(s) => Value::String(s),
+            &ExprKind::Bool(n) => Value::Bool(n),
+            &ExprKind::Number(n) => Value::Number(n),
+            ExprKind::List(items) => Value::List(
                 items
                     .iter()
                     .map(|item| self.eval_expr(item))
                     .collect::<Result<_, _>>()?,
             ),
-            Expr::Local(name) => self
+            ExprKind::Local(name) => self
                 .stack
                 .iter()
                 .rev()
                 .find_map(|(local, value)| (local == name).then(|| value.clone()))
-                .or_else(|| self.funcs.contains_key(name).then_some(Value::Func(name)))
+                .or_else(|| {
+                    self.funcs
+                        .contains_key(name)
+                        .then_some(Value::Function(name))
+                })
                 .ok_or_else(|| Error {
-                    span: node.1,
+                    span: node.span,
                     message: format!("No such variable '{name}' in scope"),
                 })?,
-            Expr::Let(local, val, body) => {
+            ExprKind::Let(local, val, body) => {
                 let val = self.eval_expr(val)?;
                 self.stack.push((local, val));
                 let res = self.eval_expr(body)?;
                 self.stack.pop();
                 res
             }
-            Expr::Then(a, b) => {
+            ExprKind::Then(a, b) => {
                 self.eval_expr(a)?;
                 self.eval_expr(b)?
             }
-            Expr::Binary(lhs, op, rhs) => {
-                let lhs = self.eval_expr(lhs)?.to_number(lhs.1)?;
-                let rhs = self.eval_expr(rhs)?.to_number(rhs.1)?;
+            ExprKind::Binary(lhs, op, rhs) => {
+                let lhs = self.eval_expr(lhs)?.to_number(lhs.span)?;
+                let rhs = self.eval_expr(rhs)?.to_number(rhs.span)?;
 
                 let binary = match op {
                     BinaryOp::Add => std::ops::Add::add,
@@ -89,10 +94,10 @@ impl<'me> Machine<'me> {
 
                 Value::Number(binary(lhs, rhs))
             }
-            Expr::Call(func_expr, args) => {
+            ExprKind::Call(func_expr, args) => {
                 let func = self.eval_expr(func_expr)?;
                 match func {
-                    Value::Func(name) => {
+                    Value::Function(name) => {
                         let func = &self.funcs[&name];
                         let stack = if func.args.len() == args.len() {
                             func.args
@@ -102,7 +107,7 @@ impl<'me> Machine<'me> {
                                 .collect::<Result<Vec<_>, _>>()?
                         } else {
                             return Err(Error {
-                                span: node.1,
+                                span: node.span,
                                 message: format!(
                                     "'{name}' called with wrong number of arguments (expected {}, found {})",
                                     func.args.len(),
@@ -116,26 +121,26 @@ impl<'me> Machine<'me> {
                     }
                     not_callable => {
                         return Err(Error {
-                            span: func_expr.1,
+                            span: func_expr.span,
                             message: format!("'{not_callable:?}' is not callable"),
                         });
                     }
                 }
             }
-            Expr::If(test_expr, if_true, if_false) => {
+            ExprKind::If(test_expr, if_true, if_false) => {
                 let test = self.eval_expr(test_expr)?;
                 match test {
                     Value::Bool(true) => self.eval_expr(if_true)?,
                     Value::Bool(false) => self.eval_expr(if_false)?,
                     value => {
                         return Err(Error {
-                            span: test_expr.1,
+                            span: test_expr.span,
                             message: format!("Conditions must be booleans, found '{value:?}'"),
                         });
                     }
                 }
             }
-            Expr::Print(expr) => {
+            ExprKind::Print(expr) => {
                 let val = self.eval_expr(expr)?;
                 println!("{val:?}");
                 val

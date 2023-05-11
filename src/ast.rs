@@ -1,24 +1,29 @@
 use crate::lexer::Span;
 
-pub type Spanned<T> = (T, Span);
-pub type ExprPtr<'input> = Box<Spanned<Expr<'input>>>;
+pub type ExprPtr<'input> = Box<Expr<'input>>;
 
 #[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
-static_assert_size!(ExprPtr, 8);
+static_assert_size!(Expr, 56);
 
 #[derive(Debug)]
-pub enum Expr<'input> {
+pub struct Expr<'input> {
+    pub kind: ExprKind<'input>,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub enum ExprKind<'input> {
     Error,
     Unit,
     Bool(bool),
     Number(f64),
     Str(&'input str),
-    List(Vec<Spanned<Self>>),
+    List(Vec<Expr<'input>>),
     Local(&'input str),
     Let(&'input str, ExprPtr<'input>, ExprPtr<'input>),
     Then(ExprPtr<'input>, ExprPtr<'input>),
     Binary(ExprPtr<'input>, BinaryOp, ExprPtr<'input>),
-    Call(ExprPtr<'input>, Vec<Spanned<Expr<'input>>>),
+    Call(ExprPtr<'input>, Vec<Expr<'input>>),
     If(ExprPtr<'input>, ExprPtr<'input>, ExprPtr<'input>),
     Print(ExprPtr<'input>),
 }
@@ -37,5 +42,5 @@ pub enum BinaryOp {
 pub struct Func<'input> {
     pub args: Vec<&'input str>,
     pub span: Span,
-    pub body: Spanned<Expr<'input>>,
+    pub body: Expr<'input>,
 }
