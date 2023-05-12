@@ -16,6 +16,15 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf::phf_map! {
     "false" => Token::Bool(false),
 };
 
+static OPERATORS: phf::Map<&'static str, Token> = phf::phf_map! {
+    "+" => Token::Op(BinaryOp::Add),
+    "-" => Token::Op(BinaryOp::Sub),
+    "*" => Token::Op(BinaryOp::Mul),
+    "/" => Token::Op(BinaryOp::Div),
+    "==" => Token::Op(BinaryOp::Eq),
+    "!=" => Token::Op(BinaryOp::NotEq),
+};
+
 pub fn lexer<'input>()
 -> impl Parser<'input, &'input str, Vec<(Token<'input>, Span)>, extra::Err<Rich<'input, char, Span>>>
 {
@@ -31,18 +40,12 @@ pub fn lexer<'input>()
         .then_ignore(just('"'))
         .map_slice(Token::Str);
 
-    let operator = one_of("+*-/!=")
-        .repeated()
-        .at_least(1)
-        .map_slice(|slice| match slice {
-            "+" => Token::Op(BinaryOp::Add),
-            "-" => Token::Op(BinaryOp::Sub),
-            "*" => Token::Op(BinaryOp::Mul),
-            "/" => Token::Op(BinaryOp::Div),
-            "==" => Token::Op(BinaryOp::Eq),
-            "!=" => Token::Op(BinaryOp::NotEq),
-            _ => unreachable!("{slice}"),
-        });
+    let operator = one_of("+*-/!=").repeated().at_least(1).map_slice(|slice| {
+        OPERATORS
+            .get(slice)
+            .cloned()
+            .unwrap_or_else(|| panic!("{slice}"))
+    });
 
     let one_symbol = one_of("()[]{};,").map(|ch| match ch {
         '(' => Token::OpenParen,

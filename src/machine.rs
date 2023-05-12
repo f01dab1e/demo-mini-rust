@@ -193,7 +193,7 @@ mod tests {
     use chumsky::prelude::Input;
     use chumsky::Parser;
 
-    use super::{Machine, Value};
+    use super::Value;
 
     #[track_caller]
     #[allow(clippy::needless_pass_by_value)]
@@ -205,10 +205,7 @@ mod tests {
             .parse(tokens.as_slice().spanned(eoi.into()))
             .unwrap();
 
-        let mut machine = Machine {
-            funcs: &funcs,
-            stack: Vec::new(),
-        };
+        let mut machine = crate::machine::init(&funcs);
         let func = &funcs["main"];
         assert_eq!(machine.eval_expr(&func.body).unwrap(), expect);
     }
