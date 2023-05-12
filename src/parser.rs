@@ -5,7 +5,7 @@ use chumsky::prelude::*;
 use crate::ast::{BinaryOp, Expr, ExprKind, Func};
 use crate::lexer::{Span, Token};
 
-const BLOCK_END_TOKENS: [Token; 4] = [
+const BLOCK_END_TOKENS: [Token<'_>; 4] = [
     Token::Semi,
     Token::CloseBrace,
     Token::CloseParen,
@@ -286,7 +286,7 @@ pub fn funcs<'tokens, 'input: 'tokens>() -> impl Parser<
         })
 }
 
-fn mk_expr(kind: ExprKind, span: Span) -> Expr {
+fn mk_expr(kind: ExprKind<'_>, span: Span) -> Expr<'_> {
     Expr { kind, span }
 }
 

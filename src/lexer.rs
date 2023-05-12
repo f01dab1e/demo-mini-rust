@@ -6,7 +6,7 @@ use crate::ast::BinaryOp;
 
 pub type Span = SimpleSpan<usize>;
 
-static KEYWORDS: phf::Map<&'static str, Token> = phf::phf_map! {
+static KEYWORDS: phf::Map<&'static str, Token<'_>> = phf::phf_map! {
     "fn" => Token::Fn,
     "let" => Token::Let,
     "print" => Token::Print,
@@ -16,7 +16,7 @@ static KEYWORDS: phf::Map<&'static str, Token> = phf::phf_map! {
     "false" => Token::Bool(false),
 };
 
-static OPERATORS: phf::Map<&'static str, Token> = phf::phf_map! {
+static OPERATORS: phf::Map<&'static str, Token<'_>> = phf::phf_map! {
     "+" => Token::Op(BinaryOp::Add),
     "-" => Token::Op(BinaryOp::Sub),
     "*" => Token::Op(BinaryOp::Mul),
@@ -78,7 +78,7 @@ pub fn lexer<'input>()
 }
 
 #[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
-static_assert_size!(Token, 24);
+static_assert_size!(Token<'_>, 24);
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token<'input> {
@@ -113,7 +113,7 @@ impl<'input> Token<'input> {
 }
 
 impl<'input> std::fmt::Display for Token<'input> {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Token::Bool(x) => write!(f, "{x}"),
             Token::Number(n) => write!(f, "{n}"),

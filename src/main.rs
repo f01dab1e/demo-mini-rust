@@ -1,5 +1,14 @@
+//!
+//! demo-mini-rust
+//!
+
 #![feature(exact_size_is_empty)]
-#![deny(unused_qualifications)]
+#![deny(
+    unused_qualifications,
+    rust_2018_idioms,
+    missing_debug_implementations,
+    missing_docs
+)]
 #![deny(clippy::pedantic, clippy::use_self)]
 
 use anyhow::{bail, Context};

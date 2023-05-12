@@ -3,7 +3,7 @@ use crate::lexer::Span;
 pub type ExprPtr<'input> = Box<Expr<'input>>;
 
 #[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
-static_assert_size!(Expr, 56);
+static_assert_size!(Expr<'_>, 56);
 
 #[derive(Debug)]
 pub struct Expr<'input> {

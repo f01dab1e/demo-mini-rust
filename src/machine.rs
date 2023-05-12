@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use crate::ast::{BinaryOp, Expr, ExprKind, Func};
 use crate::lexer::Span;
 
-pub fn init<'input>(funcs: &'input HashMap<&'input str, Func>) -> Machine<'input> {
+pub fn init<'input>(funcs: &'input HashMap<&'input str, Func<'_>>) -> Machine<'input> {
     Machine::new(funcs)
 }
 
 #[cfg(all(target_arch = "x86_64", target_pointer_width = "64"))]
-static_assert_size!(Value, 32);
+static_assert_size!(Value<'_>, 32);
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value<'input> {
@@ -72,7 +72,7 @@ impl<'me> Machine<'me> {
     }
 
     #[allow(clippy::too_many_lines)]
-    pub fn eval_expr(&mut self, node: &'me Expr) -> Result<Value<'me>, Error> {
+    pub fn eval_expr(&mut self, node: &'me Expr<'_>) -> Result<Value<'me>, Error> {
         let value = match &node.kind {
             ExprKind::Error => panic!("parsing error encountered 😢"),
             ExprKind::Unit => Value::Unit,
@@ -197,7 +197,7 @@ mod tests {
 
     #[track_caller]
     #[allow(clippy::needless_pass_by_value)]
-    fn eval_expr(input: &str, expect: Value) {
+    fn eval_expr(input: &str, expect: Value<'_>) {
         let input = format!("fn main() {{ {input} }}");
         let tokens = crate::lexer::lexer().parse(&input).unwrap();
         let eoi = input.len()..input.len();
